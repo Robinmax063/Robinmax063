@@ -1,0 +1,110 @@
+import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ShoppingCart, MapPin, QrCode } from "lucide-react";
+import { loadStripe } from "@stripe/stripe-js";
+
+const stripePromise = loadStripe("your-stripe-public-key");
+
+const FoodTruckApp = () => {
+  const [menu, setMenu] = useState([
+    { id: 1, name: "Tea and all kinds", price: 1200, image: "/images/tea.jpg" },
+    { id: 2, name: "Coffee and all kinds", price: 1500, image: "/images/coffee.jpg" },
+    { id: 3, name: "Bread Omleate", price: 5050, image: "/images/bread.jpg" },
+    { id: 4, name: "Po'boy", price: 600, image: "/images/poboy.jpg" },
+    { id: 5, name: "Pasta", price: 700, image: "/images/pasta.jpg" },
+    { id: 6, name: "Pasta with Vodka Sauce", price: 800, image: "/images/vodka_pasta.jpg" },
+    { id: 7, name: "Pulled Pork Sandwich", price: 750, image: "/images/pulled_pork.jpg" },
+    { id: 8, name: "Turkey Sandwich", price: 650, image: "/images/turkey_sandwich.jpg" },
+    { id: 9, name: "Chicken Pol Die", price: 900, image: "/images/chicken_pol_die.jpg" },
+    { id: 10, name: "Spaghetti with Meatballs", price: 850, image: "/images/spaghetti_meatballs.jpg" },
+    { id: 11, name: "Momo's", price: 600, image: "/images/momos.jpg" },
+    { id: 12, name: "Pancake", price: 500, image: "/images/pancake.jpg" },
+    { id: 13, name: "French Fries", price: 400, image: "/images/french_fries.jpg" },
+  ]);
+  const [cart, setCart] = useState([]);
+  const [location, setLocation] = useState(null);
+
+  useEffect(() => {
+    fetch("/api/location")
+      .then((res) => res.json())
+      .then((data) => setLocation(data));
+  }, []);
+
+  const addToCart = (item) => {
+    setCart([...cart, item]);
+  };
+
+  const handlePayment = async () => {
+    const stripe = await stripePromise;
+    const response = await fetch("/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cart }),
+    });
+
+    const session = await response.json();
+
+    if (session.id) {
+      stripe.redirectToCheckout({ sessionId: session.id });
+    } else {
+      alert("Checkout session creation failed. Please try again.");
+    }
+  };
+
+  const formatPrice = (cents) => `$${(cents / 100).toFixed(2)}`;
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.9 }} 
+      animate={{ opacity: 1, scale: 1 }} 
+      transition={{ duration: 0.8 }}
+      className="p-6"
+    >
+      <h1 className="text-2xl font-bold mb-4">Hire&Inspire Food Truck Menu</h1>
+      {location && (
+        <div className="mb-4 flex items-center">
+          <MapPin className="mr-2" />
+          <span>{location.address}</span>
+        </div>
+      )}
+      <div className="grid grid-cols-2 gap-4">
+        {menu.map((item) => (
+          <Card key={item.id} className="p-4">
+            <CardContent>
+              <motion.img 
+                src={item.image} 
+                alt={item.name} 
+                className="w-full h-32 object-cover mb-2 rounded-lg" 
+                whileHover={{ scale: 1.1 }}
+              />
+              <h2 className="text-xl font-semibold">{item.name}</h2>
+              <p className="text-gray-600 font-bold text-lg">{formatPrice(item.price)}</p>
+              <Button onClick={() => addToCart(item)} className="mt-2">
+                Add to Cart
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <div className="mt-6">
+        <h2 className="text-xl font-bold">Cart</h2>
+        {cart.map((item, index) => (
+          <p key={index}>{item.name} - {formatPrice(item.price)}</p>
+        ))}
+        {cart.length > 0 && (
+          <Button className="mt-4 bg-green-500 text-white" onClick={handlePayment}>
+            <ShoppingCart className="mr-2" /> Checkout
+          </Button>
+        )}
+      </div>
+      <div className="mt-6 text-center">
+        <h2 className="text-lg font-semibold">Scan QR Code to Order</h2>
+        <QrCode className="w-16 h-16 mx-auto mt-2" />
+      </div>
+    </motion.div>
+  );
+};
+
+export default FoodTruckApp;
